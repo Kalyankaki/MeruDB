@@ -1,0 +1,251 @@
+// Prisma schema for MathCodeLab - Gamified Learning Portal
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== NextAuth Models ====================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ==================== Application Models ====================
+
+enum UserRole {
+  STUDENT
+  TUTOR
+  CREATOR
+  ADMIN
+}
+
+enum Tier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+  MASTER
+  GRANDMASTER
+}
+
+enum Difficulty {
+  BEGINNER
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+  LEGENDARY
+}
+
+enum SubmissionStatus {
+  PENDING
+  CORRECT
+  INCORRECT
+  PARTIAL
+  ERROR
+}
+
+enum ProblemCategory {
+  ALGEBRA
+  GEOMETRY
+  CALCULUS
+  NUMBER_THEORY
+  COMBINATORICS
+  PROBABILITY
+  STATISTICS
+  LINEAR_ALGEBRA
+  DISCRETE_MATH
+  LOGIC
+  CODING
+  MIXED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  username      String?   @unique
+  bio           String?   @db.Text
+  role          UserRole  @default(STUDENT)
+  tier          Tier      @default(BRONZE)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  accounts    Account[]
+  sessions    Session[]
+  ratings     Rating[]
+  submissions Submission[]
+  problems    Problem[]    @relation("CreatedProblems")
+
+  // Stats (denormalized for performance)
+  totalSolved   Int @default(0) @map("total_solved")
+  currentStreak Int @default(0) @map("current_streak")
+  longestStreak Int @default(0) @map("longest_streak")
+  lastActiveAt  DateTime? @map("last_active_at")
+
+  @@map("users")
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  rating    Int      @default(1200) // Starting ELO-style rating
+  ratingChange Int   @default(0) @map("rating_change") // Last rating change
+  peakRating Int     @default(1200) @map("peak_rating")
+  gamesPlayed Int    @default(0) @map("games_played")
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  draws     Int      @default(0)
+  category  ProblemCategory @default(MIXED)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([rating(sort: Desc)])
+  @@index([category, rating(sort: Desc)])
+  @@map("ratings")
+}
+
+model Problem {
+  id          String          @id @default(cuid())
+  title       String
+  slug        String          @unique
+  description String          @db.Text
+  difficulty  Difficulty      @default(MEDIUM)
+  category    ProblemCategory @default(MIXED)
+  tags        String[]        @default([])
+  points      Int             @default(100)
+  ratingDelta Int             @default(0) @map("rating_delta") // ELO points for solving
+  
+  // Problem content
+  hints       String[]        @default([])
+  solution    String?         @db.Text
+  testCases   Json?           @map("test_cases")
+  
+  // Metadata
+  creatorId   String?         @map("creator_id")
+  isPublished Boolean         @default(false) @map("is_published")
+  solveCount  Int             @default(0) @map("solve_count")
+  attemptCount Int            @default(0) @map("attempt_count")
+  avgSolveTime Int?           @map("avg_solve_time") // in seconds
+  
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  creator     User?           @relation("CreatedProblems", fields: [creatorId], references: [id], onDelete: SetNull)
+  submissions Submission[]
+
+  @@index([difficulty])
+  @@index([category])
+  @@index([isPublished])
+  @@map("problems")
+}
+
+model Submission {
+  id          String           @id @default(cuid())
+  userId      String           @map("user_id")
+  problemId   String           @map("problem_id")
+  answer      String           @db.Text
+  status      SubmissionStatus @default(PENDING)
+  score       Int              @default(0)
+  timeTaken   Int?             @map("time_taken") // in seconds
+  ratingBefore Int?            @map("rating_before")
+  ratingAfter  Int?            @map("rating_after")
+  feedback    String?          @db.Text
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([problemId])
+  @@index([status])
+  @@map("submissions")
+}
+
+// ==================== Gamification Models ====================
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String
+  points      Int      @default(0)
+  condition   Json     // Conditions to unlock
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  achievementId String   @map("achievement_id")
+  unlockedAt    DateTime @default(now()) @map("unlocked_at")
+
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model DailyChallenge {
+  id        String   @id @default(cuid())
+  problemId String   @map("problem_id")
+  date      DateTime @unique @db.Date
+  bonusXp   Int      @default(50) @map("bonus_xp")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("daily_challenges")
+}
