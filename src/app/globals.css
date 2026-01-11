@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* Mathemagician Dark Theme by default */
+    --background: 265 40% 10%;
+    --foreground: 210 40% 98%;
+
+    --card: 265 40% 13%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 265 40% 13%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 45 93% 55%; /* Gold */
+    --primary-foreground: 265 40% 15%; /* Dark purple text */
+
+    --secondary: 265 30% 20%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 265 30% 20%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 265 40% 25%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 265 30% 25%;
+    --input: 265 30% 25%;
+    --ring: 45 93% 55%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
