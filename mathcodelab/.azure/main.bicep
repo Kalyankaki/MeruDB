@@ -97,7 +97,8 @@ resource appService 'Microsoft.Web/sites@2023-01-01' = {
         }
         {
           name: 'NEXTAUTH_SECRET'
-          value: nextAuthSecret
+          value: 'n/s1cWsQonnlIwyt9qngKHUG7qaaYL7VpDg8atk9/uw='
+
         }
         {
           name: 'NODE_ENV'
