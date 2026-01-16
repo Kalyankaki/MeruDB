@@ -11,7 +11,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   // Enable standalone output for Azure App Service / Docker deployment
-  output: "standalone",
+  // Only use standalone when not deploying to Vercel (Vercel uses its own serverless model)
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
   
   // Image optimization configuration for Azure CDN
   images: {
